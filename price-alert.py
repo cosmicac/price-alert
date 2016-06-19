@@ -5,17 +5,35 @@ from email.mime.text import MIMEText
 import configparser
 import smtplib as smtp
 
-URL_1080 = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487243'
-URL_980 = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487142'  
 
-URLS = [URL_1080, URL_980]
+URLS = {'EVGA_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487243',
+        'EVGA_ACX_1080' : 'http://www.newegg.com/Product/Product.aspx?item=N82E16814487246',
+        'EVGA_SC_1080' : 'http://www.newegg.com/Product/Product.aspx?item=N82E16814487244',
+        'EVGA_FTW_1080' : 'http://www.newegg.com/Product/Product.aspx?item=N82E16814487245',
+        'GIGABYTE_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814125861',
+        'GIGABYTE_G1_1080' : 'http://www.newegg.com/Product/Product.aspx?item=N82E16814125869',
+        'GIGABYTE_XTREME_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814125873',
+        'PNY_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814133629',
+        'ASUS_ROG_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814126103',
+        'ASUS_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814126101',
+        'ASUS_STRIX_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814126106',
+        'MSI_AERO_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127944',
+        'MSI_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127940',
+        'ZOTAC_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814500396',
+        'EVGA_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487247',
+        'GIGABYTE_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814125870',
+        'ASUS_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814126104',
+        'PNY_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814133630',
+        'ZOTAC_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814500397',
+        'MSI_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127941'}
 
+EVGA_980TI = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487142'  
 
 parser = configparser.ConfigParser()
 parser.read('config.ini')
 EMAIL_ADDR_FROM = parser.get('email_info', 'email')
 EMAIL_PW = parser.get('email_info', 'password')
-EMAIL_ADDR_TO = ['weirdotomli@gmail.com', "cosmicac@berkeley.edu"] 
+EMAIL_ADDR_TO = ['weirdotomli@gmail.com'] 
 
 def main():
     driver = webdriver.PhantomJS()
@@ -24,8 +42,8 @@ def main():
 
     try:
         while True:
-            for url in URLS: 
-                print('checking: ' + url)
+            for item, url in URLS.iteritems(): 
+                print('checking: ' + item)
                 before_in_stock = item_status[url]
                 current_in_stock = check_stock(driver, url)
                 if current_in_stock is not None: 
