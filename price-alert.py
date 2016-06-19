@@ -1,7 +1,8 @@
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 import configparser
 import smtplib as smtp
 import datetime as dt
@@ -26,9 +27,10 @@ URLS = {'EVGA_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16
         'ASUS_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814126104',
         'PNY_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814133630',
         'ZOTAC_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814500397',
-        'MSI_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127941'}
+        'MSI_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127941',
+        'ACER_XB270HU_BPRZ' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16824009852'}
 
-EVGA_980TI = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487142'  
+#URLS['EVGA_980TI'] = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487142'  
 
 parser = configparser.ConfigParser()
 parser.read('config.ini')
@@ -45,27 +47,42 @@ def main():
     try:
         while True:
             for item, url in URLS.items(): 
-                print('checking: ' + item)
+                print('checking: ' + item, end = " ")
                 before_in_stock = item_status[item]
                 current_in_stock = check_stock(driver, url)
                 if current_in_stock is not None: 
                     if not before_in_stock and current_in_stock:
-                        price_element = driver.find_element_by_xpath("//ul[@class='price has-label-membership price-product-cells price-main-product']//li[@class='price-current']")
-                        name_element = driver.find_element_by_id('grpDescrip_h')
-                        send_emails(url, price_element.text, name_element.text)
+                        print('{0} is in stock.'.format(item))
+                        price_element = scrape_element(driver, driver.find_element_by_xpath, "//ul[@class='price has-label-membership price-product-cells price-main-product']//li[@class='price-current']")
+                        name_element = scrape_element(driver, driver.find_element_by_id, 'grpDescrip_h')
+                        send_emails(url, none_or_text(price_element), none_or_text(name_element))
                     item_status[item] = current_in_stock
             count += 1
             print('Done with round {0} at {1}.'.format(count, str(dt.datetime.now())))
+
 
     except KeyboardInterrupt:
         print('Quitting...')
         driver.quit()
 
+def scrape_element(driver, method, *args):
+    try: 
+        return method(*args)
+
+    except NoSuchElementException:
+        print('Could not find stock element on {0}'.format(url))
+        return None
+
 def check_stock(driver, url):
     try:
         driver.get(url)
-        stock_element = driver.find_element_by_id('landingpage-stock')
-        return stock_element.text != 'OUT OF STOCK.'
+        stock_element = scrape_element(driver, driver.find_element_by_id, 'landingpage-stock')
+        if stock_element is not None:
+            print(stock_element.text)
+            return stock_element.text != 'OUT OF STOCK.'
+        else:
+            return None
+
     except TimeoutException:
         print('Timed out trying to get: {0}'.format(url))
         return None
@@ -88,6 +105,10 @@ def send_emails(url, price, item_name):
 
     except: 
         print("Failed to send email.")
+
+def none_or_text(element):
+    return 'None' if element is None else element.text
+
 
 if __name__ == "__main__":
     main()
