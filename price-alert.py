@@ -1,11 +1,13 @@
-from selenium import webdriver
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import TimeoutException
 import configparser
 import smtplib as smtp
 import datetime as dt
+import time 
 
 
 URLS = {'EVGA_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487243',
@@ -28,7 +30,8 @@ URLS = {'EVGA_FE_1080' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16
         'PNY_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814133630',
         'ZOTAC_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814500397',
         'MSI_FE_1070' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814127941',
-        'ACER_XB270HU_BPRZ' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16824009852'}
+        'ACER_XB270HU_BPRZ' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16824009852',
+        'ASUS_PG279Q' : 'http://www.newegg.com/Product/Product.aspx?Item=N82E16824236705'}
 
 #URLS['EVGA_980TI'] = 'http://www.newegg.com/Product/Product.aspx?Item=N82E16814487142'  
 
@@ -39,38 +42,56 @@ EMAIL_PW = parser.get('email_info', 'password')
 EMAIL_ADDR_TO = parser.get('email_info', 'email_list').split(',')
 
 def main():
-    driver = webdriver.PhantomJS(desired_capabilities = {'phantomjs.page.settings.resourceTimeout':'5000'})
-    driver.set_page_load_timeout(45)
+    driver = init_driver()
     item_status = dict.fromkeys(URLS.keys(), False)
-    count = 0
+    round_count = 0
 
     try:
         while True:
+            error_count = 0
+
             for item, url in URLS.items(): 
                 print('checking: ' + item, end = " ")
                 before_in_stock = item_status[item]
                 current_in_stock = check_stock(driver, url)
                 if current_in_stock is not None: 
                     if not before_in_stock and current_in_stock:
-                        print('{0} is in stock.'.format(item))
+                        print('{0} is in stock.---------------------------------------------------------------------'.format(item))
                         price_element = scrape_element(driver, driver.find_element_by_xpath, "//ul[@class='price has-label-membership price-product-cells price-main-product']//li[@class='price-current']")
                         name_element = scrape_element(driver, driver.find_element_by_id, 'grpDescrip_h')
                         send_emails(url, none_or_text(price_element), none_or_text(name_element))
                     item_status[item] = current_in_stock
-            count += 1
-            print('Done with round {0} at {1}.'.format(count, str(dt.datetime.now())))
+                else:
+                    error_count += 1    
 
+                time.sleep(8)
+
+            round_count += 1
+            print('Done with round {0} at {1}.'.format(round_count, str(dt.datetime.now())))
+
+            if error_count > 10:
+                print('Restarting driver...')
+                driver = init_driver()
 
     except KeyboardInterrupt:
         print('Quitting...')
         driver.quit()
+
+def init_driver():
+    dcap = dict(DesiredCapabilities.PHANTOMJS)
+    dcap["phantomjs.page.settings.userAgent"] = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/53 (KHTML, like Gecko) Chrome/15.0.87")
+    dcap['phantomjs.page.settings.resourceTimeout'] = '5000'
+    driver = webdriver.PhantomJS(desired_capabilities=dcap)
+    driver.set_page_load_timeout(20)
+    driver.implicitly_wait(3)
+    return driver
 
 def scrape_element(driver, method, *args):
     try: 
         return method(*args)
 
     except NoSuchElementException:
-        print('Could not find stock element on {0}'.format(url))
+        print('Could not find element.')
         return None
 
 def check_stock(driver, url):
@@ -83,8 +104,8 @@ def check_stock(driver, url):
         else:
             return None
 
-    except TimeoutException:
-        print('Timed out trying to get: {0}'.format(url))
+    except TimeoutException as err:
+        print('\nTimed out trying to get: {0}'.format(url))
         return None
 
 def send_emails(url, price, item_name):
